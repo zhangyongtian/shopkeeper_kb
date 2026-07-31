@@ -13,7 +13,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     init_logging(settings.log_level)
 
-    app = FastAPI(title="shopkeeper-kb")
+    app = FastAPI(title="智能知识库")
     app.add_middleware(RequestIdMiddleware)
     register_exception_handlers(app)
     app.include_router(api_router)

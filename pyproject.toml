@@ -1,7 +1,7 @@
 [project]
 name = "shopkeeper-kb"
 version = "0.1.0"
-description = "Add your description here"
+description = "智能知识库系统骨架工程"
 readme = "README.md"
 authors = [
     { name = "zyt", email = "zhangyongtianaa@sina.com" }
