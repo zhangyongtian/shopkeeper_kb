@@ -59,7 +59,14 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
    - Commits：贴 `git log --oneline origin/<base>..HEAD`
    - Files Changed：贴 `git diff --name-only origin/<base>..HEAD`
    - Known Limitations / Follow-ups：如有则写
-   - 若提供 `issue`：追加 `Closes: #<issue>`
+   - 若提供 `issue`：
+     - 仅当本次变更与该任务一致时，追加 `Closes: #<issue>`
+     - 若一致性不足（无法从 diff/提交/描述判断），改为 `Refs: #<issue>` 或不关联
+
+一致性判断建议：
+- 变更文件路径与 issue scope 匹配（例如 api/db/workflow/infra/docs 等）
+- PR summary 与 issue title/summary 关键词高度相关
+- 不要把无关代码变更硬关联到 issue（会污染任务追踪与队列顺序）
 
 ## 4) 推送与创建 PR（必须）
 
