@@ -78,16 +78,3 @@ class ImportMainGraphRunner:
     @classmethod
     def create_and_run(cls, state: ImportGraphState):
         return cls().run(state)
-
-if __name__ == "__main__":
-    log.init_logging("INFO")
-    init_state = {
-        "local_file_path":r"D:\output\hak180产品安全手册.md",
-        "is_pdf_read_enabled": True,
-        "is_md_read_enabled": False
-    }
-    result = ImportMainGraphRunner.create_and_run(init_state)
-    print(result)
-    
-        
-        
