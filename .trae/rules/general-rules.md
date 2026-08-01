@@ -19,6 +19,7 @@ alwaysApply: true
 ├── pyproject.toml
 ├── uv.lock
 ├── README.md
+├── test/                      # 手动运行的打印/冒烟脚本（按需添加，不引入 pytest）
 ├── src/
 │   └── shopkeeper_kb/
 └── .gitignore
@@ -76,6 +77,7 @@ src/shopkeeper_kb/
 - 与外部系统交互：优先放 `tools/` 或 `integrations/`（不要把网络/数据库代码写在 agent 文件里）
 - FastAPI 路由与启动：放 `app/`
 - 配置：集中在 `settings.py`，通过环境变量与 `.env`（开发）注入，避免硬编码
+- 临时打印验证脚本：放 `test/`（仅当需要复现/验证某段逻辑时添加，避免为所有模块强制写测试）
 
 ## 4. 入口规范（如何运行）
 
