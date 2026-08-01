@@ -13,44 +13,27 @@ description: 基于项目提交规范自动分析 diff、给出拆分方案，�
 - 若用户在指令中包含 `dry-run`：只输出拆分方案与 commit message，不做任何 `git add/commit`
 
 可选参数（用户在命令后追加即可）：
-- `task=<id-or-desc>`：任务标识，用于生成分支名与 trailers（若省略默认 `misc`）
-- `scope=<scope>`：影响范围（建议从提交规范的 scope 里选，例如 api/db/workflow/infra/docs/config 等；若省略默认 `infra`）
-- `base=<branch>`：基线分支，默认 `main`
+- `task=<id-or-desc>`：任务标识，用于 trailers 与提交信息上下文（若省略默认 `misc`）
+- `scope=<scope>`：影响范围（建议从提交规范的 scope 里选，例如 api/db/workflow/infra/docs/config 等；若省略可由变更文件推断）
 
-## 1) 同步基线并创建分支（必须）
+前置要求：
+- 你必须已在工作分支上（禁止在 `main` 直接提交）
+- 分支创建与同步由 `/smart-branch` 负责（先同步 main 再切分支）
 
-目标：先把 `main` 拉到最新，再从最新 `main` 切出一个新分支开展工作；本命令只创建本地提交，不 push。
+## 1) 采集仓库状态（必须）
 
 1. 解析参数：
-   - `base` 缺省为 `main`
    - `task` 缺省为 `misc`
-   - `scope` 缺省为 `infra`
-2. 记录当前分支名（用于结束后可选切回）：
+2. 获取分支与工作区状态：
    - `git rev-parse --abbrev-ref HEAD`
-3. 若当前工作区不干净，先将变更暂存到本地缓存（stash），避免拉取基线失败：
+   - 若为 `main`：停止并提示先运行 `/smart-branch` 切分支
    - `git status --porcelain=v1`
-   - 若不为空：`git stash push -u -m "smart-commit preflight"`
-4. 同步远端基线到本地（禁止 merge commit，必须 fast-forward）：
-   - `git fetch origin <base> --prune`
-   - `git switch <base>`
-   - `git pull --ff-only`
-5. 从最新基线切新分支（分支名规则：`agent/<scope>-<task>-<yyyymmdd>`）：
-   - 分支名中的 task 需做 slug 化：小写、非字母数字替换为 `-`、连续 `-` 合并
-   - `git switch -c agent/<scope>-<task>-<yyyymmdd>`
-6. 若第 3 步做过 stash，则在新分支恢复本地变更：
-   - `git stash pop`（若冲突，停止并提示人工处理冲突后再继续）
-
-## 2) 采集仓库状态（必须）
-
-1. 获取分支与工作区状态：
-   - `git rev-parse --abbrev-ref HEAD`
-   - `git status --porcelain=v1`
-2. 获取 diff（优先聚焦已暂存，其次未暂存）：
+3. 获取 diff（优先聚焦已暂存，其次未暂存）：
    - `git diff --staged`
    - `git diff`
-3. 若存在未跟踪文件，列出清单并判断是否应该提交（生成物/临时文件/敏感文件一律不提交）。
+4. 若存在未跟踪文件，列出清单并判断是否应该提交（生成物/临时文件/敏感文件一律不提交）。
 
-## 3) 生成“原子提交”拆分方案（必须）
+## 2) 生成“原子提交”拆分方案（必须）
 
 按以下原则分组变更，输出一个 commit plan（按顺序）：
 
@@ -66,7 +49,7 @@ description: 基于项目提交规范自动分析 diff、给出拆分方案，�
 - **目的说明**：一句话解释“为什么需要这个提交”
 - **提交信息**：严格按规则文件生成（中文 subject + 英文 type/scope）
 
-## 4) 生成 commit message（必须）
+## 3) 生成 commit message（必须）
 
 每个 commit 的 message 使用如下结构：
 
@@ -88,7 +71,7 @@ Closes: <可选>
 - subject 用动词开头，避免“更新/修改/处理一下/一些改动”
 - 若本次变更属于 breaking change，必须加 `!` 并写 `BREAKING CHANGE: ...` 迁移说明
 
-## 5) 自动落地（非 dry-run 必须执行）
+## 4) 自动落地（非 dry-run 必须执行）
 
 按 commit plan 从 C1 到 Cn 依次执行：
 
