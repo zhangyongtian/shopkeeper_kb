@@ -49,6 +49,8 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
    - `git fetch origin <base> --prune`（失败则继续，但要提示可能不准）
    - `git log --oneline origin/<base>..HEAD`
    - `git diff --name-only origin/<base>..HEAD`
+   - 生成 PR body 时必须把上述两条命令的输出“写入文本”，禁止把命令替换表达式（如 `$(git log ...)`）原样写入 body
+   - 注意：若使用 heredoc 写文件，禁止使用 `cat <<'EOF'`（单引号 heredoc 会阻止 `$(...)` 与 `$VAR` 展开）；应先执行命令得到输出再拼接文本，或使用不带引号的 `<<EOF`
 2. PR 标题规则：
    - 优先使用最新一条提交的 header 作为 PR 标题
    - 若最新提交不适合作为标题，使用：`feat(infra): <subject>` 或 `docs(config): <subject>`（按实际变更归类）
