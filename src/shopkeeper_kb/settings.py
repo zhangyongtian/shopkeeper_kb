@@ -16,6 +16,8 @@ class Settings:
 
     mongo_uri: str
     mongo_db: str
+    mineru_token: str
+    mineru_base_url: str
 
 
 def _get_bool(value: str | None, *, default: bool) -> bool:
@@ -35,4 +37,6 @@ def get_settings() -> Settings:
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         mongo_uri=os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017"),
         mongo_db=os.getenv("MONGO_DB", "shopkeeper_kb"),
+        mineru_token=os.getenv("MINERU_TOKEN", "").strip(),
+        mineru_base_url=os.getenv("MINERU_BASE_URL", "https://mineru.net").rstrip("/"),
     )
