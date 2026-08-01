@@ -11,6 +11,8 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
 
 可选参数（用户在命令后追加即可）：
 - `task=<id-or-desc>`：用于生成分支名与 PR 标题，例如 `task=kb-import`
+- `order=<NNN>`：合并顺序号（3 位数字推荐，如 001/010）；建议总是提供；若指定 `automerge` 必须同时提供
+- `issue=<number>`：关联的任务编号（可选，常见为 Issue 编号）；提供后 PR body 追加 `Closes: #<issue>`
 - `base=<branch>`：目标基线分支，默认 `main`
 - `automerge`：在 PR 创建后尝试开启 Auto-merge（需要仓库允许且 CI/规则通过）
 
@@ -25,6 +27,10 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
 3. 解析参数：
    - `base` 缺省为 `main`
    - `task` 缺省为 `misc`
+   - `order` 缺省为空
+   - `issue` 缺省为空
+
+若指定了 `automerge` 但未提供 `order`，停止并提示补齐 `order`（用于合并队列排序）。
 
 若工作区不干净，停止并提示先运行 `/smart-commit` 或手动提交。
 
@@ -48,10 +54,12 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
    - 若最新提交不适合作为标题，使用：`feat(infra): <subject>` 或 `docs(config): <subject>`（按实际变更归类）
 3. PR 描述（body）必须包含：
    - Task：来自 `task` 参数
+   - Order：来自 `order` 参数（若提供）
    - Summary：用 3–6 条要点概述本次变更意图（不要只罗列文件名）
    - Commits：贴 `git log --oneline origin/<base>..HEAD`
    - Files Changed：贴 `git diff --name-only origin/<base>..HEAD`
    - Known Limitations / Follow-ups：如有则写
+   - 若提供 `issue`：追加 `Closes: #<issue>`
 
 ## 4) 推送与创建 PR（必须）
 
@@ -59,7 +67,10 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
    - `git push -u origin HEAD`
 2. 创建 PR（优先使用 GitHub CLI `gh`）：
    - 先检测：`command -v gh`
-   - 若可用且已登录：用 `gh pr create --base <base> --head <branch> --title <title> --body-file <file>`
+   - 若可用且已登录：
+     - 创建 PR：`gh pr create --base <base> --head <branch> --title <title> --body-file <file>`
+     - 若指定 `automerge`：给 PR 加标签 `automerge`
+     - 若需要与 GitHub 上的队列工具/脚本配合：可额外加标签 `queue/<order>`（可选）
    - 若 `gh` 不可用或未登录：
      - 输出远端分支地址
      - 输出 PR 标题与 PR body 内容
@@ -77,4 +88,3 @@ description: 将当前分支的提交推送到远端并创建 PR（支持可选�
 - PR 链接（若已创建）
 - 是否已启用 auto-merge（若用户指定）
 - 下一步建议（例如：等待 CI、请求 review、补充说明）
-
