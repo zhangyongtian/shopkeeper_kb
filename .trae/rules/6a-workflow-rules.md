@@ -1,3 +1,7 @@
+---
+alwaysApply: false
+description: 6A 工作流规则（开发执行规范）
+---
 # 6A 工作流规则（开发执行规范）
 
 ## 激活方式
