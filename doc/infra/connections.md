@@ -87,6 +87,7 @@ MINIO_PUBLIC_BASE_URL=http://192.168.25.133:9002
 - `MINIO_PUBLIC_BASE_URL` 用于写回 Markdown 链接（带 `http://`）
 - `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` 同时也是 MinIO Console 登录凭据（默认 `minioadmin` / `minioadmin`）
 - 程序会自动创建 bucket `shopkeeper-kb` 并设置为匿名可读（公开读，用于 Markdown 直链）
+- 对象路径规则：默认以 `md_path` 的父目录名作为书名目录前缀，例如 `金融怪杰/images/part_001/xxx.jpg`
 
 ### 千问多模态（OpenAI Compatible）
 
