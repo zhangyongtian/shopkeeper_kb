@@ -111,7 +111,7 @@ def upload_file_to_presigned_url(*, file_path: str, upload_url: str, timeout_s: 
         conn.endheaders()
         with file_path_obj.open("rb") as f:
             while True:
-                chunk = f.read(1024 * 1024)
+                chunk = f.read(4 * 1024 * 1024)
                 if not chunk:
                     break
                 conn.send(chunk)
@@ -205,32 +205,87 @@ def poll_batch_result(
         time.sleep(poll_interval_s)
 
 
-def download_file(*, url: str, dst_path: str, timeout_s: int = 600) -> None:
+def download_file(
+    *,
+    url: str,
+    dst_path: str,
+    timeout_s: int = 600,
+    attempts: int = 10,
+    chunk_size: int = 4 * 1024 * 1024,
+) -> None:
     dst = Path(dst_path)
     dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_suffix(dst.suffix + ".download")
 
     ctx = ssl.create_default_context()
     last_err: Exception | None = None
-    for attempt in range(1, 6):
-        if dst.exists():
+    for attempt in range(1, attempts + 1):
+        resume_pos = 0
+        if tmp.exists():
             try:
-                dst.unlink()
+                resume_pos = tmp.stat().st_size
             except Exception:
-                pass
+                resume_pos = 0
+
         req = urllib.request.Request(url=url, method="GET")
+        if resume_pos > 0:
+            req.add_header("Range", f"bytes={resume_pos}-")
+
         try:
             with urllib.request.urlopen(req, timeout=timeout_s, context=ctx) as resp:
-                with dst.open("wb") as f:
+                status = getattr(resp, "status", None)
+                if status is None:
+                    try:
+                        status = int(resp.getcode() or 0)
+                    except Exception:
+                        status = 0
+
+                headers = resp.headers
+                content_range = headers.get("Content-Range")
+                content_length = headers.get("Content-Length")
+
+                expected_total: int | None = None
+                if content_range and "/" in content_range:
+                    total = content_range.split("/", 1)[1].strip()
+                    if total.isdigit():
+                        expected_total = int(total)
+                elif content_length and content_length.isdigit() and resume_pos == 0:
+                    expected_total = int(content_length)
+
+                if resume_pos > 0 and status != 206:
+                    try:
+                        tmp.unlink()
+                    except Exception:
+                        pass
+                    resume_pos = 0
+
+                mode = "ab" if resume_pos > 0 else "wb"
+                with tmp.open(mode) as f:
                     while True:
-                        chunk = resp.read(1024 * 1024)
+                        chunk = resp.read(chunk_size)
                         if not chunk:
                             break
                         f.write(chunk)
+
+                if expected_total is not None:
+                    try:
+                        current = tmp.stat().st_size
+                    except Exception:
+                        current = 0
+                    if current < expected_total:
+                        raise MinerUError(f"incomplete download: {current}/{expected_total}")
+
+            if dst.exists():
+                try:
+                    dst.unlink()
+                except Exception:
+                    pass
+            tmp.replace(dst)
             return
         except urllib.error.HTTPError as e:
             last_err = e
-            if 500 <= int(e.code) < 600 and attempt < 5:
-                time.sleep(min(2**attempt, 15))
+            if 500 <= int(e.code) < 600 and attempt < attempts:
+                time.sleep(min(2**attempt, 30))
                 continue
             raise MinerUError(f"MinerU download failed HTTP {e.code}") from e
         except urllib.error.URLError as e:
@@ -241,21 +296,29 @@ def download_file(*, url: str, dst_path: str, timeout_s: int = 600) -> None:
                 retryable = True
             if isinstance(reason, socket.timeout):
                 retryable = True
-            if attempt < 5 and retryable:
-                time.sleep(min(2**attempt, 15))
+            if attempt < attempts and retryable:
+                time.sleep(min(2**attempt, 30))
                 continue
             raise MinerUError(f"MinerU download failed: {e}") from e
         except ssl.SSLError as e:
             last_err = e
-            if attempt < 5:
-                time.sleep(min(2**attempt, 15))
+            if attempt < attempts:
+                time.sleep(min(2**attempt, 30))
                 continue
             raise MinerUError(f"MinerU download failed: {e}") from e
+        except MinerUError as e:
+            last_err = e
+            if attempt < attempts:
+                time.sleep(min(2**attempt, 30))
+                continue
+            raise
         except Exception as e:
             last_err = e
-            if attempt < 5 and isinstance(e, (socket.timeout, ConnectionResetError)):
-                time.sleep(min(2**attempt, 15))
+            if attempt < attempts and isinstance(e, (socket.timeout, ConnectionResetError)):
+                time.sleep(min(2**attempt, 30))
                 continue
             raise MinerUError(f"MinerU download failed: {e}") from e
+
+    raise MinerUError(f"MinerU download failed after {attempts} attempts: {last_err}")
 
     raise MinerUError(f"MinerU download failed after retries: {last_err}") from last_err
