@@ -18,6 +18,7 @@ class Settings:
     mongo_db: str
     mineru_token: str
     mineru_base_url: str
+    md_img_context_chars: int
 
 
 def _get_bool(value: str | None, *, default: bool) -> bool:
@@ -39,4 +40,5 @@ def get_settings() -> Settings:
         mongo_db=os.getenv("MONGO_DB", "shopkeeper_kb"),
         mineru_token=os.getenv("MINERU_TOKEN", "").strip(),
         mineru_base_url=os.getenv("MINERU_BASE_URL", "https://mineru.net").rstrip("/"),
+        md_img_context_chars=int(os.getenv("MD_IMG_CONTEXT_CHARS", "800")),
     )
