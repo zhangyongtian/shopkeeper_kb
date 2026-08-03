@@ -1,6 +1,10 @@
-doc/
+doc/**/*.pdf
+doc/*.pdf
+doc/private_sources.md
 images/
-services/
+services/**/data/
+services/**/volumes/
+services/**/.minio.sys/
 __pycache__/
 *.py[cod]
 *$py.class
