@@ -1,28 +1,22 @@
 from __future__ import annotations
 
-import json
 import random
-import re
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from threading import Lock
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
 from shopkeeper_kb.settings import Settings
 
 
-_JSON_OBJECT_PATTERN = re.compile(r"\{[\s\S]*\}")
-
-
-def _extract_first_json_object(text: str) -> dict:
-    value = text.strip()
-    if value.startswith("{") and value.endswith("}"):
-        return json.loads(value)
-    match = _JSON_OBJECT_PATTERN.search(value)
-    if not match:
-        raise ValueError("未找到 JSON 对象输出")
-    return json.loads(match.group(0))
+class _QwenVLStructuredOutput(BaseModel):
+    alt: str = Field(min_length=1)
+    img_desc: str = Field(min_length=1)
 
 
 @dataclass(frozen=True)
@@ -61,6 +55,13 @@ class QwenVLClient:
         self._timeout_s = settings.qwen_timeout_s
         self._max_retry = max(int(settings.qwen_max_retry), 0)
         self._rate_limiter = _RateLimiter(rps=float(settings.qwen_rps))
+        self._llm = ChatOpenAI(
+            model=self._model,
+            api_key=self._api_key,
+            base_url=self._base_url,
+            timeout=self._timeout_s,
+            max_retries=0,
+        ).with_structured_output(_QwenVLStructuredOutput)
 
     def describe_image(
         self,
@@ -87,54 +88,26 @@ class QwenVLClient:
             ]
         ).strip()
 
-        body = {
-            "model": self._model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_text},
-                        {"type": "image_url", "image_url": {"url": image_data_url}},
-                    ],
-                },
-            ],
-            "temperature": 0.2,
-        }
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(
+                content=[
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": image_data_url}},
+                ]
+            ),
+        ]
 
-        data = self._request_json(
-            url=f"{self._base_url}/chat/completions",
-            payload=body,
-        )
-        content = (
-            (((data.get("choices") or [{}])[0]).get("message") or {}).get("content") or ""
-        )
-        parsed = _extract_first_json_object(str(content))
-        alt = str(parsed.get("alt") or "").strip()
-        img_desc = str(parsed.get("img_desc") or "").strip()
-        if not alt and not img_desc:
-            raise ValueError("千问输出为空")
-        return QwenVLResult(alt=alt, img_desc=img_desc)
-
-    def _request_json(self, *, url: str, payload: dict) -> dict:
-        raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         last_error: Exception | None = None
-
         for attempt in range(self._max_retry + 1):
             self._rate_limiter.acquire()
             try:
-                req = urllib.request.Request(
-                    url=url,
-                    data=raw,
-                    method="POST",
-                    headers={
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {self._api_key}",
-                    },
-                )
-                with urllib.request.urlopen(req, timeout=self._timeout_s) as resp:
-                    resp_raw = resp.read()
-                    return json.loads(resp_raw.decode("utf-8"))
+                result = self._llm.invoke(messages)
+                alt = str(getattr(result, "alt", "")).strip()
+                img_desc = str(getattr(result, "img_desc", "")).strip()
+                if not alt or not img_desc:
+                    raise ValueError("千问输出不完整")
+                return QwenVLResult(alt=alt, img_desc=img_desc)
             except urllib.error.HTTPError as e:
                 retryable = e.code == 429 or 500 <= e.code <= 599
                 if not retryable or attempt >= self._max_retry:
@@ -166,4 +139,3 @@ def _compute_backoff_s(*, attempt: int, retry_after: str | None) -> float:
     base = min(2 ** attempt, 60)
     jitter = random.random()
     return float(min(base + jitter, 120.0))
-
