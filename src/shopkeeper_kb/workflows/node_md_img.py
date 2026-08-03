@@ -10,7 +10,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 from shopkeeper_kb import logging_config as log
 from shopkeeper_kb.integrations.qwen_vl_api import QwenVLClient
@@ -67,6 +67,14 @@ def _normalize_object_key(value: str) -> str:
     return norm
 
 
+def _normalize_book_prefix(value: str) -> str:
+    norm = str(value).strip().replace("/", "-").replace("\\", "-")
+    norm = re.sub(r"\s+", " ", norm).strip()
+    if not norm:
+        raise ValueError("书名前缀为空")
+    return norm
+
+
 def _guess_content_type(path: str) -> str:
     ct, _ = mimetypes.guess_type(path)
     if not ct:
@@ -77,6 +85,21 @@ def _guess_content_type(path: str) -> str:
 def _build_public_url(*, public_base_url: str, bucket: str, object_key: str) -> str:
     safe_key = quote(object_key, safe="/")
     return f"{public_base_url.rstrip('/')}/{bucket}/{safe_key}"
+
+
+def _try_extract_minio_object_key_from_url(url: str, *, bucket: str) -> str | None:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    path = parsed.path or ""
+    marker = f"/{bucket}/"
+    idx = path.find(marker)
+    if idx < 0:
+        return None
+    encoded_key = path[idx + len(marker) :].lstrip("/")
+    if not encoded_key:
+        return None
+    return unquote(encoded_key)
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
@@ -105,21 +128,36 @@ class NodeMDImg(NodeBase):
             raise ValueError("state.md_content 为空")
 
         md_dir = Path(md_path).parent
+        book_prefix = _normalize_book_prefix(md_dir.name)
         context_chars = max(int(getattr(settings, "md_img_context_chars", 800)), 0)
 
         items = []
         for match in _MD_IMAGE_PATTERN.finditer(md_content):
             alt = match.group(1) or ""
             raw_target = match.group(2) or ""
-            img_rel_path = _parse_md_image_target(raw_target)
-            if not img_rel_path:
+            target = _parse_md_image_target(raw_target)
+            if not target:
                 continue
 
-            img_path = Path(img_rel_path)
-            if img_path.is_absolute():
-                img_abs_path = img_path
-            else:
-                img_abs_path = (md_dir / img_path).resolve()
+            img_rel_path = target
+            img_abs_path = None
+            target_is_url = target.startswith("http://") or target.startswith("https://")
+
+            if target_is_url:
+                object_key = _try_extract_minio_object_key_from_url(target, bucket=settings.minio_bucket)
+                if object_key:
+                    raw_object_key = object_key
+                    prefix = f"{book_prefix}/"
+                    if raw_object_key.startswith(prefix):
+                        raw_object_key = raw_object_key[len(prefix) :]
+                    img_rel_path = raw_object_key
+                    img_abs_path = (md_dir / Path(raw_object_key)).resolve()
+            if img_abs_path is None:
+                img_path = Path(target)
+                if img_path.is_absolute():
+                    img_abs_path = img_path
+                else:
+                    img_abs_path = (md_dir / img_path).resolve()
 
             pre_text, next_text = _extract_pre_next(
                 md_content, span=(match.start(), match.end()), context_chars=context_chars
@@ -139,16 +177,16 @@ class NodeMDImg(NodeBase):
                 "minio_url": "",
                 "cache_hit": False,
                 "error": "",
+                "target_is_url": target_is_url,
             }
             items.append(item)
 
         state["md_img_items"] = items
 
         log.info(f"-- {self.name} -- 识别图片数量: {len(items)}; context_chars={context_chars}")
-
-        if not settings.qwen_base_url or not settings.qwen_api_key:
-            log.info(f"-- {self.name} -- 未配置 QWEN_BASE_URL / QWEN_API_KEY，跳过多模态识别与写回")
-            return state
+        qwen_enabled = bool(settings.qwen_base_url and settings.qwen_api_key)
+        if not qwen_enabled:
+            log.info(f"-- {self.name} -- 未配置 QWEN_BASE_URL / QWEN_API_KEY，将跳过多模态识别，仅做上传/写回")
 
         redis_client = None
         try:
@@ -159,7 +197,7 @@ class NodeMDImg(NodeBase):
         if redis_client is None:
             log.info(f"-- {self.name} -- Redis 不可用，跳过缓存")
 
-        qwen_client = QwenVLClient(settings)
+        qwen_client = QwenVLClient(settings) if qwen_enabled else None
         minio_client = create_minio_client(settings)
         bucket = settings.minio_bucket
         if not minio_client.bucket_exists(bucket):
@@ -183,11 +221,18 @@ class NodeMDImg(NodeBase):
 
             img_abs = Path(str(item["img_abs_path"]))
             image_bytes = img_abs.read_bytes()
+            raw_object_key = _normalize_object_key(str(item["img_rel_path"]))
+            object_key = posixpath.join(book_prefix, raw_object_key)
+            json_key = posixpath.splitext(object_key)[0] + ".json"
             h = hashlib.sha256()
             h.update(image_bytes)
             h.update(str(item.get("pre_text") or "").encode("utf-8"))
             h.update(str(item.get("next_text") or "").encode("utf-8"))
             h.update(str(settings.qwen_vl_model).encode("utf-8"))
+            h.update(b"|minio_key_schema=v2|")
+            h.update(book_prefix.encode("utf-8"))
+            h.update(b"|")
+            h.update(raw_object_key.encode("utf-8"))
             cache_key = f"mdimg:{h.hexdigest()}"
 
             if redis_client is not None:
@@ -198,33 +243,48 @@ class NodeMDImg(NodeBase):
                     item["img_desc"] = str(cached.get("img_desc") or "").strip()
                     item["minio_url"] = str(cached.get("minio_url") or "").strip()
                     item["cache_hit"] = True
-                    return item
+            if qwen_client is not None and (not str(item.get("alt") or "").strip() or not str(item.get("img_desc") or "").strip()):
+                ct = _guess_content_type(item["img_rel_path"])
+                if not ct.startswith("image/"):
+                    ct = "image/png"
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                data_url = f"data:{ct};base64,{b64}"
+
+                last_error = None
+                for _ in range(2):
+                    try:
+                        result = qwen_client.describe_image(
+                            image_data_url=data_url,
+                            pre_text=str(item.get("pre_text") or ""),
+                            next_text=str(item.get("next_text") or ""),
+                            current_alt=str(item.get("alt") or ""),
+                        )
+                        item["alt"] = result.alt.strip()
+                        item["img_desc"] = result.img_desc.strip()
+                        break
+                    except Exception as e:
+                        last_error = e
+                if not str(item.get("alt") or "").strip() or not str(item.get("img_desc") or "").strip():
+                    raise last_error or ValueError("img_desc 为空")
 
             ct = _guess_content_type(item["img_rel_path"])
             if not ct.startswith("image/"):
                 ct = "image/png"
-            b64 = base64.b64encode(image_bytes).decode("utf-8")
-            data_url = f"data:{ct};base64,{b64}"
 
-            result = qwen_client.describe_image(
-                image_data_url=data_url,
-                pre_text=str(item.get("pre_text") or ""),
-                next_text=str(item.get("next_text") or ""),
-                current_alt=str(item.get("alt") or ""),
-            )
-            item["alt"] = result.alt.strip() or str(item.get("alt") or "").strip()
-            item["img_desc"] = result.img_desc.strip()
-
-            object_key = _normalize_object_key(str(item["img_rel_path"]))
-            json_key = posixpath.splitext(object_key)[0] + ".json"
-
-            minio_client.put_object(
-                bucket,
-                object_key,
-                io.BytesIO(image_bytes),
-                length=len(image_bytes),
-                content_type=ct,
-            )
+            object_exists = False
+            try:
+                minio_client.stat_object(bucket, object_key)
+                object_exists = True
+            except Exception:
+                object_exists = False
+            if not object_exists:
+                minio_client.put_object(
+                    bucket,
+                    object_key,
+                    io.BytesIO(image_bytes),
+                    length=len(image_bytes),
+                    content_type=ct,
+                )
 
             minio_url = _build_public_url(
                 public_base_url=settings.minio_public_base_url,
