@@ -2,6 +2,7 @@ services:
   mongo:
     image: mongo:7
     container_name: shopkeeper-mongo
+    restart: unless-stopped
     ports:
       - "27017:27017"
     command: ["mongod", "--bind_ip_all"]
@@ -9,6 +10,7 @@ services:
   redis:
     image: redis:7.4.0-alpine
     container_name: shopkeeper-redis
+    restart: unless-stopped
     profiles: ["cache"]
     ports:
       - "6379:6379"
@@ -17,6 +19,7 @@ services:
   etcd:
     image: quay.io/coreos/etcd:v3.5.18
     container_name: shopkeeper-milvus-etcd
+    restart: unless-stopped
     environment:
       - ETCD_AUTO_COMPACTION_MODE=revision
       - ETCD_AUTO_COMPACTION_RETENTION=1000
@@ -38,6 +41,7 @@ services:
   minio:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     container_name: shopkeeper-minio
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -54,6 +58,7 @@ services:
   milvus:
     image: milvusdb/milvus:v2.5.5
     container_name: shopkeeper-milvus
+    restart: unless-stopped
     command: ["milvus", "run", "standalone"]
     security_opt:
       - seccomp:unconfined
@@ -82,6 +87,7 @@ services:
   attu:
     image: zilliz/attu:v2.5.10
     container_name: shopkeeper-milvus-attu
+    restart: unless-stopped
     environment:
       - MILVUS_URL=milvus:19530
       - ATTU_LOG_LEVEL=info
