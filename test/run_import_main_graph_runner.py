@@ -6,7 +6,7 @@ from shopkeeper_kb.agents.import_main_graph_runner import ImportMainGraphRunner
 
 def main() -> None:
     init_logging("INFO")
-    state = {"local_file_path": r"/home/roott/work/doc/交易心理分析.pdf"}
+    state = {"local_file_path": r"/home/roott/work/doc/日本蜡烛图技术.pdf"}
     result = ImportMainGraphRunner.create_and_run(state)
     print(result)
 
