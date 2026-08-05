@@ -108,6 +108,28 @@ def _atomic_write_text(path: Path, text: str) -> None:
     tmp_path.replace(path)
 
 
+def _try_load_minio_json(*, minio_client, bucket: str, json_key: str) -> dict | None:
+    try:
+        resp = minio_client.get_object(bucket, json_key)
+    except Exception:
+        return None
+    try:
+        raw = resp.read()
+    finally:
+        try:
+            resp.close()
+        except Exception:
+            pass
+        try:
+            resp.release_conn()
+        except Exception:
+            pass
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except Exception:
+        return None
+
+
 class NodeMDImg(NodeBase):
     """
     MarkDown图片处理节点：多模态图片理解
@@ -142,10 +164,12 @@ class NodeMDImg(NodeBase):
             img_rel_path = target
             img_abs_path = None
             target_is_url = target.startswith("http://") or target.startswith("https://")
+            minio_object_key = ""
 
             if target_is_url:
                 object_key = _try_extract_minio_object_key_from_url(target, bucket=settings.minio_bucket)
                 if object_key:
+                    minio_object_key = object_key
                     raw_object_key = object_key
                     prefix = f"{book_prefix}/"
                     if raw_object_key.startswith(prefix):
@@ -178,6 +202,7 @@ class NodeMDImg(NodeBase):
                 "cache_hit": False,
                 "error": "",
                 "target_is_url": target_is_url,
+                "minio_object_key": minio_object_key,
             }
             items.append(item)
 
@@ -216,24 +241,46 @@ class NodeMDImg(NodeBase):
         minio_client.set_bucket_policy(bucket, json.dumps(policy))
 
         def handle_one(item: dict) -> dict:
+            target_is_url = bool(item.get("target_is_url"))
+            minio_object_key_from_url = str(item.get("minio_object_key") or "").strip()
+
             if not item.get("exists"):
+                if target_is_url and minio_object_key_from_url:
+                    json_key = posixpath.splitext(minio_object_key_from_url)[0] + ".json"
+                    meta = _try_load_minio_json(minio_client=minio_client, bucket=bucket, json_key=json_key)
+                    if meta:
+                        if not str(item.get("alt") or "").strip():
+                            item["alt"] = str(meta.get("alt") or "").strip()
+                        item["img_desc"] = str(meta.get("img_desc") or "").strip()
+                        item["minio_url"] = str(meta.get("minio_url") or "").strip() or _build_public_url(
+                            public_base_url=settings.minio_public_base_url,
+                            bucket=bucket,
+                            object_key=minio_object_key_from_url,
+                        )
+                        meta_cache_key = str(meta.get("cache_key") or "").strip()
+                        if redis_client is not None and meta_cache_key:
+                            redis_client.setex(
+                                meta_cache_key,
+                                int(settings.redis_cache_ttl_s),
+                                json.dumps(
+                                    {"alt": item["alt"], "img_desc": item["img_desc"], "minio_url": item["minio_url"]},
+                                    ensure_ascii=False,
+                                ).encode("utf-8"),
+                            )
                 return item
 
             img_abs = Path(str(item["img_abs_path"]))
             image_bytes = img_abs.read_bytes()
+            image_sha256 = hashlib.sha256(image_bytes).hexdigest()
             raw_object_key = _normalize_object_key(str(item["img_rel_path"]))
             object_key = posixpath.join(book_prefix, raw_object_key)
             json_key = posixpath.splitext(object_key)[0] + ".json"
-            h = hashlib.sha256()
-            h.update(image_bytes)
-            h.update(str(item.get("pre_text") or "").encode("utf-8"))
-            h.update(str(item.get("next_text") or "").encode("utf-8"))
-            h.update(str(settings.qwen_vl_model).encode("utf-8"))
-            h.update(b"|minio_key_schema=v2|")
-            h.update(book_prefix.encode("utf-8"))
-            h.update(b"|")
-            h.update(raw_object_key.encode("utf-8"))
-            cache_key = f"mdimg:{h.hexdigest()}"
+            cache_h = hashlib.sha256()
+            cache_h.update(b"|mdimg_cache=v3|")
+            cache_h.update(image_sha256.encode("utf-8"))
+            cache_h.update(b"|")
+            cache_h.update(str(settings.qwen_vl_model).encode("utf-8"))
+            cache_key = f"mdimg:{cache_h.hexdigest()}"
 
             if redis_client is not None:
                 cached_raw = redis_client.get(cache_key)
@@ -243,7 +290,58 @@ class NodeMDImg(NodeBase):
                     item["img_desc"] = str(cached.get("img_desc") or "").strip()
                     item["minio_url"] = str(cached.get("minio_url") or "").strip()
                     item["cache_hit"] = True
-            if qwen_client is not None and (not str(item.get("alt") or "").strip() or not str(item.get("img_desc") or "").strip()):
+
+            meta_before = _try_load_minio_json(minio_client=minio_client, bucket=bucket, json_key=json_key)
+
+            if (
+                not item.get("cache_hit")
+                and meta_before
+                and str(meta_before.get("model") or "").strip() == str(settings.qwen_vl_model).strip()
+                and str(meta_before.get("img_desc") or "").strip()
+            ):
+                item["alt"] = str(meta_before.get("alt") or item.get("alt") or "").strip()
+                item["img_desc"] = str(meta_before.get("img_desc") or "").strip()
+                item["minio_url"] = str(meta_before.get("minio_url") or "").strip() or _build_public_url(
+                    public_base_url=settings.minio_public_base_url,
+                    bucket=bucket,
+                    object_key=object_key,
+                )
+                item["cache_hit"] = True
+                if redis_client is not None:
+                    redis_client.setex(
+                        cache_key,
+                        int(settings.redis_cache_ttl_s),
+                        json.dumps(
+                            {"alt": item["alt"], "img_desc": item["img_desc"], "minio_url": item["minio_url"]},
+                            ensure_ascii=False,
+                        ).encode("utf-8"),
+                    )
+
+            if (
+                not item.get("cache_hit")
+                and meta_before
+                and str(meta_before.get("cache_key") or "").strip() == cache_key
+                and str(meta_before.get("model") or "").strip() == str(settings.qwen_vl_model).strip()
+            ):
+                item["alt"] = str(meta_before.get("alt") or item.get("alt") or "").strip()
+                item["img_desc"] = str(meta_before.get("img_desc") or item.get("img_desc") or "").strip()
+                item["minio_url"] = str(meta_before.get("minio_url") or "").strip() or _build_public_url(
+                    public_base_url=settings.minio_public_base_url,
+                    bucket=bucket,
+                    object_key=object_key,
+                )
+                if str(item.get("img_desc") or "").strip():
+                    item["cache_hit"] = True
+                    if redis_client is not None:
+                        redis_client.setex(
+                            cache_key,
+                            int(settings.redis_cache_ttl_s),
+                            json.dumps(
+                                {"alt": item["alt"], "img_desc": item["img_desc"], "minio_url": item["minio_url"]},
+                                ensure_ascii=False,
+                            ).encode("utf-8"),
+                        )
+            if qwen_client is not None and (not str(item.get("img_desc") or "").strip()):
                 ct = _guess_content_type(item["img_rel_path"])
                 if not ct.startswith("image/"):
                     ct = "image/png"
@@ -277,7 +375,10 @@ class NodeMDImg(NodeBase):
                 object_exists = True
             except Exception:
                 object_exists = False
-            if not object_exists:
+            should_overwrite = False
+            if meta_before and str(meta_before.get("image_sha256") or "").strip():
+                should_overwrite = str(meta_before.get("image_sha256") or "").strip() != image_sha256
+            if not object_exists or should_overwrite:
                 minio_client.put_object(
                     bucket,
                     object_key,
@@ -296,12 +397,14 @@ class NodeMDImg(NodeBase):
                 "img_desc": item["img_desc"],
                 "pre_text": item.get("pre_text") or "",
                 "next_text": item.get("next_text") or "",
-                "hash": h.hexdigest(),
+                "hash": cache_h.hexdigest(),
+                "image_sha256": image_sha256,
                 "model": settings.qwen_vl_model,
                 "ts": int(time.time()),
                 "minio_bucket": bucket,
                 "minio_object_key": object_key,
                 "minio_url": minio_url,
+                "cache_key": cache_key,
             }
             meta_bytes = json.dumps(meta, ensure_ascii=False).encode("utf-8")
             minio_client.put_object(
