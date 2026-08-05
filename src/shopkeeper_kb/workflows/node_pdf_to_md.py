@@ -96,6 +96,8 @@ def _mineru_pdf_to_md(
     if zip_path.exists():
         log.info(f"-- node_pdf_to_md -- 检测到本地压缩包，跳过 API 调用: {zip_path}")
     else:
+        if not settings.mineru_token:
+            raise ValueError("未配置 MINERU_TOKEN，请在 .env 中设置")
         filename = f"{zip_stem}{pdf_file.suffix.lower()}"
         log.info(f"-- node_pdf_to_md -- 申请上传链接: {filename} ({display_name})")
         batch_id, upload_url = create_upload_batch(
@@ -201,8 +203,6 @@ class NodePDFToMD(NodeBase):
     def process(self, state: ImportGraphState):
         log.info(f"-- {self.name} -- 结点开始处理")
         settings = get_settings()
-        if not settings.mineru_token:
-            raise ValueError("未配置 MINERU_TOKEN，请在 .env 中设置")
 
         pdf_path = state.get("pdf_path", "")
         if not pdf_path:

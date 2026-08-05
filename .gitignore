@@ -11,3 +11,4 @@ __pycache__/
 .env
 download/
 output_doc/
+doc/json_data/
