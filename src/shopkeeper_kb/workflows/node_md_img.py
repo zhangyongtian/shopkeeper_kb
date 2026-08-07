@@ -20,7 +20,6 @@ from shopkeeper_kb.tools.redis_client import create_redis_client
 from shopkeeper_kb.workflows.base_node import NodeBase
 from shopkeeper_kb.workflows.state import ImportGraphState
 
-
 _MD_IMAGE_PATTERN = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
 
@@ -137,6 +136,8 @@ class NodeMDImg(NodeBase):
 
 
     name = "node_md_img"
+    consumes_fields = ("md_path", "md_content")
+    produces_fields = ("md_content", "md_img_items")
 
     def process(self, state: ImportGraphState):
         log.info(f"-- {self.name} -- 结点开始处理")
@@ -148,6 +149,12 @@ class NodeMDImg(NodeBase):
             raise ValueError("state.md_path 为空")
         if not md_content:
             raise ValueError("state.md_content 为空")
+
+        # 骨架阶段快速路径：没有任何图片 → 直接返回空列表，不 new 任何客户端（省时间省依赖）
+        has_any = _MD_IMAGE_PATTERN.search(md_content)
+        if not has_any:
+            log.info(f"-- {self.name} -- MD 无任何图片，跳过 MinIO / Qwen / Redis")
+            return {"md_img_items": []}
 
         md_dir = Path(md_path).parent
         book_prefix = _normalize_book_prefix(md_dir.name)

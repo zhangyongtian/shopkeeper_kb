@@ -1,11 +1,13 @@
-import json 
+import json
+
+from shopkeeper_kb import logging_config as log
 from shopkeeper_kb.workflows.base_node import NodeBase
 from shopkeeper_kb.workflows.state import ImportGraphState
-from shopkeeper_kb import logging_config as log
+
 
 class NodeTest(NodeBase):
     name: str = "node_test" # 节点名称
-    
+
     def process(self, state: ImportGraphState) -> ImportGraphState:
         """
         节点处理方法

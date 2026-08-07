@@ -1,14 +1,59 @@
-doc/**/*.pdf
-doc/*.pdf
-doc/private_sources.md
-images/
-services/**/data/
-services/**/volumes/
-services/**/.minio.sys/
+# ===== Python 运行时产物 =====
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ===== 虚拟环境与包管理 =====
+.venv/
+venv/
+ENV/
+
+# ===== 环境变量与敏感信息 =====
 .env
+.env.local
+.env.*.local
+.dbg/
+
+# ===== IDE / 编辑器 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ===== uv / Python 工具 =====
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# ===== 大型二进制：镜像包 =====
+images/*.tar
+images/*.tar.gz
+images/milvus*/
+images/mongo*/
+images/minio*/
+
+# ===== 本地模型权重（超大，避免仓库膨胀）=====
+models/
+
+# ===== 文档：原文件与中间产物（不入库）=====
+doc/**/*.pdf
+doc/*.pdf
+doc/private_sources.md
+doc/json_data/
+
+# ===== 解析缓存与下载 =====
 download/
 output_doc/
-doc/json_data/
+
+# ===== 服务数据卷（容器持久化数据）=====
+services/**/data/
+services/**/volumes/
+services/**/.minio.sys/

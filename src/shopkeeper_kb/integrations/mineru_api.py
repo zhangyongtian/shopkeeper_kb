@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import logging
-import json
 import http.client
-import ssl
+import json
+import logging
 import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse

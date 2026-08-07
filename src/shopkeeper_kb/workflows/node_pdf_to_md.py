@@ -20,7 +20,6 @@ from shopkeeper_kb.settings import get_settings
 from shopkeeper_kb.workflows.base_node import NodeBase
 from shopkeeper_kb.workflows.state import ImportGraphState
 
-
 MAX_MINERU_PAGES = 200
 _MD_IMAGE_PATH_PATTERN = re.compile(r"!\[([^\]]*)\]\((?:\./)?images/([^)]+)\)")
 

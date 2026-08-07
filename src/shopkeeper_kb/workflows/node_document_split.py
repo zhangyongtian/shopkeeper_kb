@@ -10,7 +10,6 @@ from shopkeeper_kb.settings import get_settings
 from shopkeeper_kb.workflows.base_node import NodeBase
 from shopkeeper_kb.workflows.state import Chunk, ImportGraphState, MDImgItem
 
-
 _HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
 _HR_PATTERN = re.compile(r"^\s*(?:---|\*\*\*|___)\s*$")
 _CODE_FENCE_PATTERN = re.compile(r"^\s*```")

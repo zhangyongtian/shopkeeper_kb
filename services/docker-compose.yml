@@ -97,6 +97,24 @@ services:
     depends_on:
       - milvus
 
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: shopkeeper-open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OPENAI_API_BASE_URL=http://host.docker.internal:8000/v1
+      - OPENAI_API_KEY=sk-shopkeeper-local-placeholder
+      - WEBUI_SECRET_KEY=shopkeeper-kb-secret-change-me-please
+    volumes:
+      - open-webui-data:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  open-webui-data:
+
 networks:
   default:
     name: shopkeeper
