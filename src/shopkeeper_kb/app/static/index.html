@@ -27,9 +27,21 @@
                 "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     color:var(--text);background:var(--bg);
   }
-  .page{padding:48px 24px;max-width:960px;margin:0 auto;color:var(--text-soft)}
-  .page h1{color:var(--text);margin:0 0 8px}
-  .page p{line-height:1.7}
+  .page{padding:40px 24px 120px;max-width:1180px;margin:0 auto;color:var(--text-soft)}
+  .page-head{margin-bottom:24px}
+  .page-head h1{color:var(--text);margin:0 0 8px;font-size:28px}
+  .page-desc{line-height:1.7;margin:0 0 16px}
+  .page-actions{
+    display:flex;gap:16px;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:14px;
+  }
+  .shelf-stats-inline{display:flex;gap:16px;align-items:center;flex-wrap:wrap;color:var(--text-soft);font-size:13px}
+  .shelf-stats-inline b{color:var(--text);font-size:15px;margin-right:3px}
+  .shelf-stats-inline .muted{color:var(--muted);font-size:12px;margin-left:4px}
+  .shelf-wrap{
+    background:#fff;border:1px solid var(--border);border-radius:18px;
+    box-shadow:0 4px 20px rgba(2,8,23,.05);overflow:hidden;
+  }
   kbd{background:#fff;border:1px solid var(--border);border-bottom-width:2px;padding:2px 6px;border-radius:6px;font-size:12px;color:var(--text)}
   .hint{display:flex;align-items:center;gap:10px;margin-top:20px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:#fff}
 
@@ -45,6 +57,11 @@
   .fab:hover{transform:translateY(-1px) scale(1.02)}
   .fab svg{width:24px;height:24px}
   .fab .label{margin-left:8px;display:none}
+  .badge-fab{
+    margin-left:8px;min-width:22px;height:22px;padding:0 7px;border-radius:999px;
+    background:rgba(255,255,255,.22);color:#fff;font-size:11px;font-weight:800;
+    display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.3);
+  }
   @media (min-width:860px){
     .fab{width:auto;padding:0 20px 0 16px;border-radius:999px}
     .fab .label{display:inline}
@@ -69,6 +86,7 @@
   }
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text)}
   .brand .dot{width:10px;height:10px;border-radius:999px;background:var(--brand);box-shadow:0 0 0 3px rgba(6,182,212,.18)}
+  .head-meta{display:flex;align-items:center;gap:10px;flex:1;justify-content:center}
   .close{background:none;border:none;cursor:pointer;padding:6px;color:var(--text-soft);border-radius:8px}
   .close:hover{background:#f1f5f9;color:var(--text)}
   .disclaimer{font-size:12px;color:var(--muted);padding:8px 18px;border-bottom:1px solid var(--border);background:#fafbfc}
@@ -262,22 +280,25 @@
   .lightbox .x{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:999px;border:0;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .lightbox .x:hover{background:rgba(255,255,255,.22)}
 
-  /* ---------- 2 Tabs + Badge ---------- */
-  .tabs-head{
-    display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:#fff;
+  .empty-note-warn{
+    margin-bottom:14px;padding:12px 14px;border-radius:12px;border:1px dashed rgba(245,158,11,.45);
+    background:rgba(245,158,11,.07);color:#92400e;font-size:13px;display:flex;align-items:flex-start;gap:10px;
   }
-  .tab{
-    padding:7px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text-soft);font-size:13.5px;font-weight:600;
-    cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;transition:.15s;
+  .empty-note-warn svg{flex:none;margin-top:2px}
+
+  /* ---------- Shelf (inline on page) ---------- */
+  .shelf{padding:22px 24px;max-height:none}
+  .shelf-empty{
+    padding:50px 20px;text-align:center;color:var(--muted);font-size:14px;border:2px dashed var(--border);border-radius:16px;background:#fff;
   }
-  .tab:hover{color:var(--brand-2);border-color:rgba(6,182,212,.35)}
-  .tab.active{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-color:transparent;box-shadow:0 3px 10px rgba(6,182,212,.22)}
+  .shelf-empty strong{color:var(--text);display:block;font-size:17px;margin-bottom:10px}
+  .shelf-actions{
+    display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;
+  }
   .badge{
     display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;
     background:rgba(16,185,129,.15);color:#047857;font-size:11px;font-weight:800;border:1px solid rgba(16,185,129,.3);
   }
-  .tab.active .badge{background:rgba(255,255,255,.22);color:#fff;border-color:rgba(255,255,255,.3)}
-  .tabs-space{flex:1}
   .admin-key{
     display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
   }
@@ -286,19 +307,6 @@
     outline:none;
   }
   .admin-key input:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px rgba(6,182,212,.12)}
-
-  .tab-pane{display:none;height:100%;flex-direction:column;flex:1;min-height:0}
-  .tab-pane.active{display:flex}
-
-  /* ---------- Shelf Tab ---------- */
-  .shelf{padding:18px 20px;flex:1;overflow-y:auto}
-  .shelf-empty{
-    padding:50px 20px;text-align:center;color:var(--muted);font-size:14px;border:2px dashed var(--border);border-radius:16px;background:#fff;
-  }
-  .shelf-empty strong{color:var(--text);display:block;font-size:17px;margin-bottom:10px}
-  .shelf-actions{
-    display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;
-  }
   .btn{
     display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;border:1px solid var(--border);background:#fff;cursor:pointer;
     font-weight:600;font-size:13.5px;color:var(--text);transition:.15s;
@@ -310,10 +318,10 @@
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:9px}
   .shelf-stats{display:flex;gap:14px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
   .shelf-stats b{color:var(--text);font-size:14px;margin-right:3px}
-
   .books-grid{display:grid;gap:12px}
   @media (min-width:640px){.books-grid{grid-template-columns:1fr 1fr}}
   @media (min-width:820px){.books-grid{grid-template-columns:1fr 1fr 1fr}}
+  @media (min-width:1080px){.books-grid{grid-template-columns:repeat(4,1fr)}}
   .book{
     border:1px solid var(--border);border-radius:14px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:10px;transition:.15s;position:relative;
   }
@@ -391,12 +399,32 @@
 </style>
 </head>
 <body>
+  <!-- Main Page: Header + Shelf Management -->
   <section class="page">
-    <h1>老李 · 七剑作手交易顾问 · 演示页</h1>
-    <p>基于<strong> 7 位专家加权打分 + 6 条合规熔断 + 6 位数字交易计划</strong>。UI 所有交互已接后端真实 <code class="inline">/api/qa/stream</code> SSE 接口。</p>
+    <div class="page-head">
+      <h1>老李 · 七剑作手交易顾问</h1>
+      <p class="page-desc">基于<strong> 7 位专家加权打分 + 6 条合规熔断 + 6 位数字交易计划</strong>。UI 所有交互已接后端真实 <code class="inline">/api/qa/stream</code> SSE 接口。</p>
+      <div class="page-actions">
+        <div class="shelf-stats-inline">
+          <span><b id="statEnabled">0</b> 本生效</span>
+          <span><b id="statTotal">0</b> 本入库</span>
+          <span class="muted">勾选「生效」后才参与对话检索</span>
+        </div>
+        <div class="admin-key">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input id="adminKey" placeholder="X-Admin-Key（改 enabled 需要）" value="sk-admin-change-me-in-env-please-4a7b9c2d" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Shelf Container (moved out from modal) -->
+    <div class="shelf-wrap" id="shelfWrap">
+      <div class="shelf" id="shelfRoot"></div>
+    </div>
+
     <div class="hint">
-      <strong>试试：</strong>
-      <span>点击右下角 <kbd>Ask AI</kbd> 打开对话 → 输入 <em>帮我分析贵州茅台 600519 现在要不要买？</em></span>
+      <strong>下一步：</strong>
+      <span>上传并勾选至少一本书 → 点击右下角 <kbd>Ask AI</kbd> 打开对话 → 输入 <em>帮我分析贵州茅台 600519 现在要不要买？</em></span>
     </div>
   </section>
 
@@ -409,49 +437,30 @@
       <path d="M8 14c.8.8 2.2 1.2 4 1.2s3.2-.4 4-1.2"/>
     </svg>
     <span class="label">Ask AI</span>
+    <span class="badge-fab" id="badgeFab" style="display:none">0</span>
   </button>
 
-  <!-- Chat Modal -->
+  <!-- Chat Modal (slim: chat only) -->
   <div class="mask" id="mask">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal modal-chat" role="dialog" aria-modal="true">
       <header>
         <div class="brand"><span class="dot"></span><span>老李 · 七剑作手交易顾问</span></div>
+        <div class="head-meta">
+          <span class="badge" id="badgeChat" title="当前生效书目">0</span>
+        </div>
         <button class="close" id="btnClose" aria-label="关闭">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </header>
       <div class="disclaimer">投资有风险，入市需谨慎。本顾问只提供基于规则的教育性参考，不构成任何买卖建议。</div>
-      <div class="tabs-head">
-        <div class="tab active" data-tab="chat" id="tabChat">
-          💬 对话
-          <span class="badge" id="badgeChat">0</span>
-        </div>
-        <div class="tab" data-tab="shelf" id="tabShelf">
-          📚 书架
-          <span class="badge" id="badgeShelf" style="background:rgba(148,163,184,.18);color:#475569;border-color:rgba(148,163,184,.35)">0</span>
-        </div>
-        <div class="tabs-space"></div>
-        <div class="admin-key">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <input id="adminKey" placeholder="X-Admin-Key（改 enabled 需要）" value="sk-admin-change-me-in-env-please-4a7b9c2d" />
-        </div>
-      </div>
 
-      <!-- Pane 1: Chat -->
-      <div class="tab-pane active" id="paneChat">
-        <div class="scroll" id="scroll"></div>
-        <div class="composer">
-          <div class="row">
-            <textarea class="input" id="input" placeholder="输入你的问题（建议包含股票代码/名称），按 Enter 发送，Shift+Enter 换行…" rows="1"></textarea>
-            <button class="send" id="btnSend">发送</button>
-          </div>
-          <div class="tips">示例：<span class="chip">帮我分析贵州茅台 600519 现在要不要买？</span><span class="chip">宁德时代 300750 今天可以加仓吗？</span><span class="chip">比亚迪 002594 风险分析</span></div>
+      <div class="scroll" id="scroll"></div>
+      <div class="composer">
+        <div class="row">
+          <textarea class="input" id="input" placeholder="输入你的问题（建议包含股票代码/名称），按 Enter 发送，Shift+Enter 换行…" rows="1"></textarea>
+          <button class="send" id="btnSend">发送</button>
         </div>
-      </div>
-
-      <!-- Pane 2: Shelf -->
-      <div class="tab-pane" id="paneShelf">
-        <div class="shelf" id="shelfRoot"></div>
+        <div class="tips">示例：<span class="chip">帮我分析贵州茅台 600519 现在要不要买？</span><span class="chip">宁德时代 300750 今天可以加仓吗？</span><span class="chip">比亚迪 002594 风险分析</span></div>
       </div>
     </div>
   </div>
@@ -839,7 +848,7 @@ function openPdfFromCite(idx){
 }
 
 /* =========================================================
- * Shelf Tab (Books + Upload + Ingestion Progress)
+ * Shelf Management (inline on page)
  * =======================================================*/
 const SHELF_STATE = {
   books: [],
@@ -852,10 +861,18 @@ const SHELF_STATE = {
 
 function setBadges(){
   const bChat = $("#badgeChat");
-  const bShelf = $("#badgeShelf");
-  bChat.textContent = String(SHELF_STATE.enabledCount);
-  bChat.title = `当前只问 ${SHELF_STATE.enabledCount} 本生效的书`;
-  bShelf.textContent = String(SHELF_STATE.total);
+  const bFab = $("#badgeFab");
+  const statEnabled = $("#statEnabled");
+  const statTotal = $("#statTotal");
+  const n = SHELF_STATE.enabledCount||0;
+  const t = SHELF_STATE.total||0;
+  if(bChat){ bChat.textContent = String(n); bChat.title = `当前只问 ${n} 本生效的书`; }
+  if(bFab){
+    bFab.textContent = String(n);
+    bFab.style.display = n>0 ? "inline-flex" : "none";
+  }
+  if(statEnabled) statEnabled.textContent = String(n);
+  if(statTotal) statTotal.textContent = String(t);
 }
 function __adminHeaders(){
   const key = ($("#adminKey")||{}).value || localStorage.getItem(ADMIN_KEY_LS_KEY) || "";
@@ -867,13 +884,6 @@ function __adminHeaders(){
 $("#adminKey").addEventListener("change", e => localStorage.setItem(ADMIN_KEY_LS_KEY, e.target.value));
 $("#adminKey").addEventListener("input", e => localStorage.setItem(ADMIN_KEY_LS_KEY, e.target.value));
 try{ const saved = localStorage.getItem(ADMIN_KEY_LS_KEY); if(saved) $("#adminKey").value = saved; }catch(_){}
-
-function switchTab(name){
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
-  document.querySelectorAll(".tab-pane").forEach(p=>p.classList.toggle("active", p.id==="pane"+name.charAt(0).toUpperCase()+name.slice(1)));
-  if(name==="shelf"){ renderShelf(); }
-}
-document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click", ()=>switchTab(t.dataset.tab)));
 
 async function loadBooks(){
   try{
@@ -1062,14 +1072,13 @@ function pollTask(taskId, opts={}){
         note: (j.stage_extra && (j.stage_extra.note || (typeof j.stage_extra==="string"?j.stage_extra:null))) || "",
       });
       SHELF_STATE.inProgressJobs[taskId] = job;
-      if($("#paneShelf").classList.contains("active")) renderShelf();
+      renderShelf();
       if(!STOP.has(j.status)){ setTimeout(tick, 1000); }
       else{
-        // 再跑一次 refresh books
         await loadBooks();
-        if($("#paneShelf").classList.contains("active")) renderShelf();
+        renderShelf();
         setBadges();
-        setTimeout(()=>{ delete SHELF_STATE.inProgressJobs[taskId]; if($("#paneShelf").classList.contains("active")) renderShelf(); }, 4000);
+        setTimeout(()=>{ delete SHELF_STATE.inProgressJobs[taskId]; renderShelf(); }, 4000);
       }
     }catch(_){ setTimeout(tick, 1500); }
   };
@@ -1252,14 +1261,15 @@ document.addEventListener("keydown",(e)=>{
   else if(k==="escape"){ closeSearch(); closeChat(); $("#pdfMask").classList.remove("open"); closeLightbox(); }
 });
 
-/* ---------- Welcome ---------- */
-(async function welcome(){
+/* ---------- Welcome / Init ---------- */
+(async function init(){
   const {content, bb} = addMsg("assistant","");
-  // 打开时先拉书架，更新徽章（对话 Tab 的 1/2/3 本书）
   try { await loadBooks(); setBadges(); }catch(_){}
+  // 书架始终渲染（不依赖弹窗）
+  try { renderShelf(); }catch(_){}
   const count = SHELF_STATE.enabledCount || 0;
   const hint = count ? `当前已启用 <strong>${count}</strong> 本书参与检索。`
-                    : `当前还没有勾选任何生效的书；请切到 <strong>📚 书架</strong> Tab 上传并勾选后，再来对话。`;
+                    : `当前还没有勾选任何生效的书；请在<strong>下方书架</strong>上传并勾选后，再来对话。`;
   content.innerHTML = renderMd(`你好！我是**老李 · 七剑作手交易顾问**，基于 7 位专家加权打分 + 6 条合规熔断给出交易计划。\n\n${hint}\n\n我可以：\n- 识别问题中的股票名称/代码，先过**合规围栏**再请 7 位专家逐一打分\n- 每一位专家都说明「我怎么看 / 打多少分 / 命中哪些规则」\n- 最后输出**6 位数字交易计划**：入场/止损/止盈/仓位%/仓位股/R乘数\n\n> ⚠️ 以上只是教育性规则演示，不构成买卖建议。实盘交易请结合券商研报与自身风控。`);
 })();
 </script>
